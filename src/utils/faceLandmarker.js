@@ -7,7 +7,7 @@ let faceLandmarker = null;
 
 export async function createFaceLandmarker() {
   const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
   );
 
   faceLandmarker = await FaceLandmarker.createFromOptions(
@@ -15,7 +15,7 @@ export async function createFaceLandmarker() {
     {
       baseOptions: {
         modelAssetPath: "/models/face_landmarker.task",
-        delegate: "GPU"
+        delegate: "CPU"
       },
       runningMode: "VIDEO",
       numFaces: 1,
