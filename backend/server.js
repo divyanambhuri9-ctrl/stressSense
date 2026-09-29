@@ -1,4 +1,4 @@
-```js
+
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -92,4 +92,4 @@ app.use((error, req, res, next) => {
 // EXPORT APP FOR VERCEL
 // ===============================
 module.exports = app;
-```
+
