@@ -125,7 +125,7 @@ export default function ExamMode() {
         );
 
         const uploadResponse = await fetch(
-          "http://localhost:5000/api/exam-screenshots",
+          "https://stresssense-backend-r2d5.onrender.com/api/exam-screenshots",
           {
             method: "POST",
             credentials: "include",

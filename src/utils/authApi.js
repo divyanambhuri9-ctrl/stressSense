@@ -1,5 +1,5 @@
 const API_URL =
-  "http://localhost:5000/api/auth";
+  "https://stresssense-backend-r2d5.onrender.com/api/auth";;
 
 
 // ===============================
