@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -8,6 +7,8 @@ const { MongoStore } = require("connect-mongo");
 require("dotenv").config();
 
 const app = express();
+
+const PORT = process.env.PORT || 5000;
 
 // ===============================
 // CORS
@@ -89,7 +90,8 @@ app.use((error, req, res, next) => {
 });
 
 // ===============================
-// EXPORT APP FOR VERCEL
+// START SERVER
 // ===============================
-module.exports = app;
-
+app.listen(PORT, () => {
+  console.log(`StressSense backend running on port ${PORT}`);
+});
