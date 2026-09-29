@@ -1,25 +1,17 @@
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose");
 const session = require("express-session");
 const { MongoStore } = require("connect-mongo");
 
 require("dotenv").config();
 
-
 // ===============================
 // ROUTES
 // ===============================
 
-const sessionRoutes =
-  require("./routes/sessionRoutes");
-
-const authRoutes =
-  require("./routes/authRoutes");
-
-const examScreenshotRoutes =
-  require("./routes/examScreenshotRoutes");
-
+const sessionRoutes = require("./routes/sessionRoutes");
+const authRoutes = require("./routes/authRoutes");
+const examScreenshotRoutes = require("./routes/examScreenshotRoutes");
 
 // ===============================
 // APP
@@ -27,18 +19,19 @@ const examScreenshotRoutes =
 
 const app = express();
 
-
 // ===============================
 // CORS
 // ===============================
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://stress-sense-pi.vercel.app"
+    ],
     credentials: true
   })
 );
-
 
 // ===============================
 // JSON
@@ -49,7 +42,6 @@ app.use(
     limit: "10mb"
   })
 );
-
 
 // ===============================
 // SESSION
@@ -76,12 +68,10 @@ app.use(
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-      maxAge:
-        1000 * 60 * 60 * 24 * 7
+      maxAge: 1000 * 60 * 60 * 24 * 7
     }
   })
 );
-
 
 // ===============================
 // HEALTH CHECK
@@ -90,31 +80,21 @@ app.use(
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message:
-      "StressSense backend is running 🚀"
+    message: "StressSense backend is running 🚀"
   });
 });
-
 
 // ===============================
 // AUTH API
 // ===============================
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
-
+app.use("/api/auth", authRoutes);
 
 // ===============================
 // EXAM SESSION API
 // ===============================
 
-app.use(
-  "/api/sessions",
-  sessionRoutes
-);
-
+app.use("/api/sessions", sessionRoutes);
 
 // ===============================
 // EXAM SCREENSHOT API
@@ -125,10 +105,10 @@ app.use(
   examScreenshotRoutes
 );
 
+// ===============================
+// ERROR HANDLER
+// ===============================
 
-// ===============================
-// START SERVER
-// ===============================
 app.use((error, req, res, next) => {
   console.error("❌ BACKEND ERROR:", error);
 
@@ -138,27 +118,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-mongoose
-  .connect(process.env.MONGODB_URI)
+// ===============================
+// EXPORT APP FOR VERCEL
+// ===============================
 
-  .then(() => {
-    console.log(
-      "✅ MongoDB connected successfully"
-    );
-
-    const PORT =
-      process.env.PORT || 5000;
-
-    app.listen(PORT, () => {
-      console.log(
-        `🚀 StressSense backend running on http://localhost:${PORT}`
-      );
-    });
-  })
-
-  .catch((error) => {
-    console.error(
-      "❌ MongoDB connection failed:",
-      error.message
-    );
-  });
+module.exports = app;
