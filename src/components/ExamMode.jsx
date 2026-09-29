@@ -1290,121 +1290,85 @@ export default function ExamMode() {
   ]);
 
   /*
-   * --------------------------------------------------
-   * TAB SWITCH
-   * --------------------------------------------------
-   */
+ * --------------------------------------------------
+ * TAB SWITCH
+ * --------------------------------------------------
+ */
 
-  useEffect(() => {
-    if (
-      !examStarted ||
-      completed
-    ) {
+useEffect(() => {
+  if (!examStarted || completed) {
+    return;
+  }
+
+  let lastTabSwitchTime = 0;
+
+  const recordTabSwitch = (reason) => {
+    const now = Date.now();
+
+    // Prevent visibilitychange + blur from counting
+    // the same tab switch twice.
+    if (now - lastTabSwitchTime < 1000) {
       return;
     }
 
-    const handleVisibilityChange =
-      () => {
-        if (
-          document.visibilityState ===
-          "hidden"
-        ) {
-          setTabSwitchCount(
-            (previous) =>
-              previous + 1
-          );
+    lastTabSwitchTime = now;
 
-          addExamEvent(
-            EXAM_EVENTS.TAB_SWITCH
-          );
-        }
-      };
+    setTabSwitchCount((previous) => previous + 1);
 
-    document.addEventListener(
+    addExamEvent(EXAM_EVENTS.TAB_SWITCH, {
+      reason:
+        reason === "visibilitychange"
+          ? "Student switched away from the exam tab."
+          : "Exam window lost focus."
+    });
+
+    console.log(
+      "⚠️ TAB SWITCH DETECTED:",
+      reason
+    );
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      recordTabSwitch("visibilitychange");
+    }
+  };
+
+  const handleWindowBlur = () => {
+    // Only count blur when the document is no longer visible.
+    // This prevents some normal browser interactions from
+    // being treated as tab switches.
+    if (document.visibilityState === "hidden") {
+      recordTabSwitch("blur");
+    }
+  };
+
+  document.addEventListener(
+    "visibilitychange",
+    handleVisibilityChange
+  );
+
+  window.addEventListener(
+    "blur",
+    handleWindowBlur
+  );
+
+  return () => {
+    document.removeEventListener(
       "visibilitychange",
       handleVisibilityChange
     );
 
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
-    };
-  }, [
-    examStarted,
-    completed,
-    addExamEvent
-  ]);
-
-  /*
-   * --------------------------------------------------
-   * FULLSCREEN SECURITY
-   * --------------------------------------------------
-   */
-
-  useEffect(() => {
-    if (
-      !examStarted ||
-      completed
-    ) {
-      return;
-    }
-
-    const handleFullscreenChange =
-      () => {
-        const fullscreen =
-          Boolean(
-            document.fullscreenElement
-          );
-
-        setIsFullscreen(
-          fullscreen
-        );
-
-        /*
-         * User left fullscreen.
-         */
-
-        if (!fullscreen) {
-          const now =
-            Date.now();
-
-          if (
-            now -
-              lastFullscreenEventTimeRef.current >
-            1500
-          ) {
-            lastFullscreenEventTimeRef.current =
-              now;
-
-            addExamEvent(
-              "FULLSCREEN_EXIT",
-              {
-                reason:
-                  "Student exited fullscreen mode."
-              }
-            );
-          }
-        }
-      };
-
-    document.addEventListener(
-      "fullscreenchange",
-      handleFullscreenChange
+    window.removeEventListener(
+      "blur",
+      handleWindowBlur
     );
-
-    return () => {
-      document.removeEventListener(
-        "fullscreenchange",
-        handleFullscreenChange
-      );
-    };
-  }, [
-    examStarted,
-    completed,
-    addExamEvent
-  ]);
+  };
+}, [
+  examStarted,
+  completed,
+  addExamEvent
+]);
 
   /*
    * --------------------------------------------------
