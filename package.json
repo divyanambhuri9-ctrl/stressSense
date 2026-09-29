@@ -11,6 +11,11 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
+    "bcryptjs": "^3.0.3",
+    "connect-mongo": "^6.0.0",
+    "express-session": "^1.19.0",
+    "html2canvas": "^1.4.1",
+    "multer": "^2.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1"

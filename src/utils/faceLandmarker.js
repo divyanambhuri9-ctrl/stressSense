@@ -17,14 +17,21 @@ export async function createFaceLandmarker() {
         modelAssetPath: "/models/face_landmarker.task",
         delegate: "CPU"
       },
+
       runningMode: "VIDEO",
-      numFaces: 1,
+
+      // Detect multiple people
+      numFaces: 5,
+
       outputFaceBlendshapes: true,
+
       minFaceDetectionConfidence: 0.5,
       minFacePresenceConfidence: 0.5,
       minTrackingConfidence: 0.5
     }
   );
+
+  console.log("Face Landmarker created with multiple-face detection");
 
   return faceLandmarker;
 }
