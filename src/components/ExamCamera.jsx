@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { createFaceLandmarker } from "../utils/faceLandmarker";
 import { createObjectDetector } from "../utils/objectDetector";
@@ -308,7 +307,7 @@ export default function ExamCamera({
    * ---------------------------------------------------------
    */
 
-  async function detectExtraDevice(video) {
+  function detectExtraDevice(video) {
     const detector =
       objectDetectorRef.current;
 
@@ -325,7 +324,11 @@ export default function ExamCamera({
         video.readyState <
         HTMLMediaElement.HAVE_CURRENT_DATA
       ) {
-        return false;
+        return (
+          previousStateRef.current
+            .extraDeviceDetected ??
+          false
+        );
       }
 
       const result =
@@ -357,9 +360,6 @@ export default function ExamCamera({
               category.score || 0
             );
 
-          /*
-           * Device types.
-           */
           const isDevice =
             name.includes("cell phone") ||
             name.includes("mobile phone") ||
@@ -369,10 +369,6 @@ export default function ExamCamera({
             name.includes("laptop") ||
             name.includes("computer");
 
-          /*
-           * Keep the existing sensitive
-           * minimum threshold.
-           */
           if (
             isDevice &&
             score >= 0.15
@@ -389,10 +385,6 @@ export default function ExamCamera({
         }
       }
 
-      /*
-       * Log only the strongest device
-       * detected in this check.
-       */
       if (deviceFound) {
         console.log(
           "📱 Device detected:",
@@ -402,12 +394,10 @@ export default function ExamCamera({
       }
 
       /*
-       * -----------------------------------------------------
        * STRONG DETECTION
-       * -----------------------------------------------------
        *
-       * If confidence is high enough,
-       * don't wait for a second frame.
+       * Immediately detect a device
+       * when confidence is high.
        */
       if (
         deviceFound &&
@@ -420,12 +410,10 @@ export default function ExamCamera({
       }
 
       /*
-       * -----------------------------------------------------
        * MODERATE DETECTION
-       * -----------------------------------------------------
        *
-       * We still require two detections
-       * for weaker confidence.
+       * Require two consecutive
+       * detections for lower confidence.
        */
       if (deviceFound) {
         devicePositiveCountRef.current +=
@@ -445,10 +433,6 @@ export default function ExamCamera({
 
         devicePositiveCountRef.current = 0;
 
-        /*
-         * Don't immediately remove a warning
-         * because of one missed frame.
-         */
         if (
           deviceNegativeCountRef.current >=
           2
@@ -457,6 +441,10 @@ export default function ExamCamera({
         }
       }
 
+      /*
+       * Keep the previous state while
+       * waiting for confirmation.
+       */
       return (
         previousStateRef.current
           .extraDeviceDetected ??
@@ -575,6 +563,9 @@ export default function ExamCamera({
 
     /*
      * EXTRA DEVICE
+     *
+     * Only update the previous state
+     * here, after comparing it.
      */
     if (
       previous.extraDeviceDetected !==
@@ -596,7 +587,6 @@ export default function ExamCamera({
     }
 
     /*
-     * IMPORTANT:
      * Send current live monitoring state.
      */
     onMonitoringEvent?.({
@@ -619,6 +609,19 @@ export default function ExamCamera({
     }
 
     let stopped = false;
+
+    /*
+     * Reset device detection when
+     * a new exam starts.
+     */
+    devicePositiveCountRef.current = 0;
+    deviceNegativeCountRef.current = 0;
+    objectDetectionTimeRef.current = 0;
+
+    previousStateRef.current.extraDeviceDetected =
+      false;
+
+    setExtraDeviceDetected(false);
 
     async function monitor() {
       if (stopped) {
@@ -687,9 +690,12 @@ export default function ExamCamera({
         }
 
         /*
-         * FAST DEVICE CHECK
+         * ---------------------------------------------------
+         * CONTINUOUS EXTRA DEVICE CHECK
+         * ---------------------------------------------------
          *
-         * Every 180ms.
+         * The object detector runs independently
+         * every 180ms throughout the entire exam.
          */
         let device =
           previousStateRef.current
@@ -707,10 +713,22 @@ export default function ExamCamera({
           objectDetectionTimeRef.current =
             now;
 
-          device =
-            await detectExtraDevice(
+          const detectedDevice =
+            detectExtraDevice(
               video
             );
+
+          device =
+            detectedDevice;
+
+          /*
+           * DO NOT update
+           * previousStateRef here.
+           *
+           * updateMonitoringState()
+           * must compare the old and new
+           * values first.
+           */
         }
 
         /*
@@ -724,7 +742,9 @@ export default function ExamCamera({
 
         setPossibleTalking(talking);
 
-        setExtraDeviceDetected(device);
+        setExtraDeviceDetected(
+          device
+        );
 
         /*
          * Parent component
@@ -993,4 +1013,3 @@ function MonitoringCard({
     </div>
   );
 }
-
