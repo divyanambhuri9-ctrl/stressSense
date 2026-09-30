@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { createFaceLandmarker } from "../utils/faceLandmarker";
 import { createObjectDetector } from "../utils/objectDetector";
@@ -225,18 +226,15 @@ export default function ExamCamera({
 
     const leftEyeCenter =
       (leftOuter.x +
-        leftInner.x) /
-      2;
+        leftInner.x) / 2;
 
     const rightEyeCenter =
       (rightInner.x +
-        rightOuter.x) /
-      2;
+        rightOuter.x) / 2;
 
     const eyeCenter =
       (leftEyeCenter +
-        rightEyeCenter) /
-      2;
+        rightEyeCenter) / 2;
 
     const difference =
       Math.abs(
@@ -310,9 +308,7 @@ export default function ExamCamera({
    * ---------------------------------------------------------
    */
 
-  async function detectExtraDevice(
-    video
-  ) {
+  async function detectExtraDevice(video) {
     const detector =
       objectDetectorRef.current;
 
@@ -342,6 +338,8 @@ export default function ExamCamera({
         result?.detections || [];
 
       let deviceFound = false;
+      let strongestScore = 0;
+      let detectedDeviceName = "";
 
       for (const detection of detections) {
         const categories =
@@ -372,7 +370,8 @@ export default function ExamCamera({
             name.includes("computer");
 
           /*
-           * Sensitive threshold.
+           * Keep the existing sensitive
+           * minimum threshold.
            */
           if (
             isDevice &&
@@ -380,25 +379,53 @@ export default function ExamCamera({
           ) {
             deviceFound = true;
 
-            console.log(
-              "📱 Device detected:",
-              name,
-              score.toFixed(2)
-            );
-
-            break;
+            if (
+              score > strongestScore
+            ) {
+              strongestScore = score;
+              detectedDeviceName = name;
+            }
           }
-        }
-
-        if (deviceFound) {
-          break;
         }
       }
 
       /*
-       * Quick confirmation.
+       * Log only the strongest device
+       * detected in this check.
+       */
+      if (deviceFound) {
+        console.log(
+          "📱 Device detected:",
+          detectedDeviceName,
+          strongestScore.toFixed(2)
+        );
+      }
+
+      /*
+       * -----------------------------------------------------
+       * STRONG DETECTION
+       * -----------------------------------------------------
        *
-       * Two positive detections = detected.
+       * If confidence is high enough,
+       * don't wait for a second frame.
+       */
+      if (
+        deviceFound &&
+        strongestScore >= 0.40
+      ) {
+        devicePositiveCountRef.current = 2;
+        deviceNegativeCountRef.current = 0;
+
+        return true;
+      }
+
+      /*
+       * -----------------------------------------------------
+       * MODERATE DETECTION
+       * -----------------------------------------------------
+       *
+       * We still require two detections
+       * for weaker confidence.
        */
       if (deviceFound) {
         devicePositiveCountRef.current +=
@@ -419,8 +446,8 @@ export default function ExamCamera({
         devicePositiveCountRef.current = 0;
 
         /*
-         * Don't immediately remove
-         * device warning.
+         * Don't immediately remove a warning
+         * because of one missed frame.
          */
         if (
           deviceNegativeCountRef.current >=
@@ -966,3 +993,4 @@ function MonitoringCard({
     </div>
   );
 }
+
