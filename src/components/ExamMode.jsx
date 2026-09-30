@@ -125,7 +125,7 @@ export default function ExamMode() {
         );
 
         const uploadResponse = await fetch(
-          "https://stresssense-backend-r2d5.onrender.com/api/exam-screenshots",
+          "http://localhost:5000/api/exam-screenshots",
           {
             method: "POST",
             credentials: "include",
@@ -1290,85 +1290,178 @@ export default function ExamMode() {
   ]);
 
   /*
- * --------------------------------------------------
- * TAB SWITCH
- * --------------------------------------------------
- */
+   * --------------------------------------------------
+   * TAB SWITCH
+   * --------------------------------------------------
+   */
 
-useEffect(() => {
-  if (!examStarted || completed) {
-    return;
-  }
-
-  let lastTabSwitchTime = 0;
-
-  const recordTabSwitch = (reason) => {
-    const now = Date.now();
-
-    // Prevent visibilitychange + blur from counting
-    // the same tab switch twice.
-    if (now - lastTabSwitchTime < 1000) {
+  useEffect(() => {
+    if (
+      !examStarted ||
+      completed
+    ) {
       return;
     }
 
-    lastTabSwitchTime = now;
+    let lastTabSwitchTime = 0;
 
-    setTabSwitchCount((previous) => previous + 1);
+    const recordTabSwitch =
+      (reason) => {
+        const now = Date.now();
 
-    addExamEvent(EXAM_EVENTS.TAB_SWITCH, {
-      reason:
-        reason === "visibilitychange"
-          ? "Student switched away from the exam tab."
-          : "Exam window lost focus."
-    });
+        /*
+         * Prevent duplicate events when the browser
+         * fires more than one lifecycle event for the
+         * same tab switch.
+         */
+        if (
+          now -
+            lastTabSwitchTime <
+          1000
+        ) {
+          return;
+        }
 
-    console.log(
-      "⚠️ TAB SWITCH DETECTED:",
-      reason
-    );
-  };
+        lastTabSwitchTime = now;
 
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "hidden") {
-      recordTabSwitch("visibilitychange");
-    }
-  };
+        setTabSwitchCount(
+          (previous) =>
+            previous + 1
+        );
 
-  const handleWindowBlur = () => {
-    // Only count blur when the document is no longer visible.
-    // This prevents some normal browser interactions from
-    // being treated as tab switches.
-    if (document.visibilityState === "hidden") {
-      recordTabSwitch("blur");
-    }
-  };
+        addExamEvent(
+          EXAM_EVENTS.TAB_SWITCH,
+          {
+            reason:
+              reason ===
+              "visibilitychange"
+                ? "Student switched away from the exam tab."
+                : "Exam page was hidden."
+          }
+        );
 
-  document.addEventListener(
-    "visibilitychange",
-    handleVisibilityChange
-  );
+        console.log(
+          "⚠️ TAB SWITCH DETECTED:",
+          reason
+        );
+      };
 
-  window.addEventListener(
-    "blur",
-    handleWindowBlur
-  );
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "hidden"
+        ) {
+          recordTabSwitch(
+            "visibilitychange"
+          );
+        }
+      };
 
-  return () => {
-    document.removeEventListener(
+    const handlePageHide = () => {
+      /*
+       * pagehide is a backup for browsers where
+       * visibilitychange is not delivered reliably.
+       * It is only used while the exam is active.
+       */
+      recordTabSwitch("pagehide");
+    };
+
+    document.addEventListener(
       "visibilitychange",
       handleVisibilityChange
     );
 
-    window.removeEventListener(
-      "blur",
-      handleWindowBlur
+    window.addEventListener(
+      "pagehide",
+      handlePageHide
     );
-  };
-}, [
-  examStarted,
-  completed,
-  addExamEvent
-]);
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
+      window.removeEventListener(
+        "pagehide",
+        handlePageHide
+      );
+    };
+  }, [
+    examStarted,
+    completed,
+    addExamEvent
+  ]);
+
+  /*
+   * --------------------------------------------------
+   * FULLSCREEN SECURITY
+   * --------------------------------------------------
+   */
+
+  useEffect(() => {
+    if (
+      !examStarted ||
+      completed
+    ) {
+      return;
+    }
+
+    const handleFullscreenChange =
+      () => {
+        const fullscreen =
+          Boolean(
+            document.fullscreenElement
+          );
+
+        setIsFullscreen(
+          fullscreen
+        );
+
+        /*
+         * User left fullscreen.
+         */
+
+        if (!fullscreen) {
+          const now =
+            Date.now();
+
+          if (
+            now -
+              lastFullscreenEventTimeRef.current >
+            1500
+          ) {
+            lastFullscreenEventTimeRef.current =
+              now;
+
+            addExamEvent(
+              "FULLSCREEN_EXIT",
+              {
+                reason:
+                  "Student exited fullscreen mode."
+              }
+            );
+          }
+        }
+      };
+
+    document.addEventListener(
+      "fullscreenchange",
+      handleFullscreenChange
+    );
+
+    return () => {
+      document.removeEventListener(
+        "fullscreenchange",
+        handleFullscreenChange
+      );
+    };
+  }, [
+    examStarted,
+    completed,
+    addExamEvent
+  ]);
 
   /*
    * --------------------------------------------------
@@ -1523,7 +1616,11 @@ useEffect(() => {
    * Browser JavaScript cannot guarantee that
    * developer tools or extensions are detected.
    *
-   * This is only a practical browser-side signal.
+   * IMPORTANT:
+   * We do NOT use window.blur here for a security
+   * violation because browser tab switching also
+   * triggers blur. Tab switching is handled separately
+   * by the visibilitychange listener above.
    */
 
   useEffect(() => {
@@ -1545,49 +1642,15 @@ useEffect(() => {
         );
       };
 
-    const handleWindowBlur =
-      () => {
-        /*
-         * Visibility API already handles
-         * normal tab switching.
-         *
-         * Blur gives us an additional signal
-         * when the browser window loses focus.
-         */
-
-        if (
-          document.visibilityState ===
-          "visible"
-        ) {
-          addExamEvent(
-            "SECURITY_VIOLATION",
-            {
-              reason:
-                "Exam window lost focus."
-            }
-          );
-        }
-      };
-
     window.addEventListener(
       "beforeprint",
       handleBeforePrint
-    );
-
-    window.addEventListener(
-      "blur",
-      handleWindowBlur
     );
 
     return () => {
       window.removeEventListener(
         "beforeprint",
         handleBeforePrint
-      );
-
-      window.removeEventListener(
-        "blur",
-        handleWindowBlur
       );
     };
   }, [
