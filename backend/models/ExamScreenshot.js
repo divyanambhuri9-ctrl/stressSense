@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const examScreenshotSchema = new mongoose.Schema(
@@ -36,6 +37,11 @@ const examScreenshotSchema = new mongoose.Schema(
     filePath: {
       type: String,
       required: true
+    },
+
+    cloudinaryPublicId: {
+      type: String,
+      default: null
     }
   },
   {
